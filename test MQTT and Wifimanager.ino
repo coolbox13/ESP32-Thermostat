@@ -8,6 +8,8 @@
 #include <Thread.h>             // https://github.com/ivanseidel/ArduinoThread
 #include <ThreadController.h>
 #include "ArduinoJson.h"
+#include <iostream>
+using namespace std;
 
 #define MQTT_SERVER "192.168.178.32"
 
@@ -20,9 +22,13 @@ PubSubClientTools mqtt(client);
 ThreadController threadControl = ThreadController();
 Thread thread_send_measurements = Thread();
 Thread thread_pidThermostat = Thread();
+Thread thread_setup_MQTT_connection = Thread();
+
+// PIDController node(20, 30, 0.1, 10, 1, 0, 0.1, 1000, true, false);
 
 #define INTERVAL_SEND 10000
 #define INTERVAL_PID 30000
+#define INTERVAL_MQTT_CHECK 30000
 
 int send_interval = INTERVAL_SEND;
 int pid_interval = INTERVAL_PID;
@@ -57,13 +63,19 @@ void setup() {
   setup_wifimanager();
   setup_MQTT_connection();
   setup_bme_280();
-  // Enable Thread
+
+  // Enable Threads
   thread_send_measurements.onRun(send_measurements);
-  thread_pidThermostat.onRun(pidThermostat);
   thread_send_measurements.setInterval(INTERVAL_SEND);
-  thread_pidThermostat.setInterval(INTERVAL_PID);
   threadControl.add(&thread_send_measurements);
+
+  thread_pidThermostat.onRun(pidThermostat);
+  thread_pidThermostat.setInterval(INTERVAL_PID);
   threadControl.add(&thread_pidThermostat);
+
+  thread_setup_MQTT_connection.onRun(setup_MQTT_connection);
+  thread_setup_MQTT_connection.setInterval(INTERVAL_MQTT_CHECK);
+  threadControl.add(&thread_setup_MQTT_connection);
 }
 
 void loop() {
